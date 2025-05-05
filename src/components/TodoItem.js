@@ -6,12 +6,15 @@ import Form from "react-bootstrap/Form";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 import "../App.css";
+import NotFound from "./NotFound";
 
 function TodoItem() {
   const [todosState, setTodos] = useState(() => {
     const storedTodos = localStorage.getItem("todos");
     return storedTodos ? JSON.parse(storedTodos) : todos;
   });
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     localStorage.setItem("todos", JSON.stringify(todosState));
@@ -108,7 +111,19 @@ function TodoItem() {
     setShowDeleteModal(false);
   };
 
-  const sortedTodos = todosState.sort((a, b) => {
+  // Handle Search Query Change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Filter Todos based on search query
+  const filteredTodos = todosState.filter(
+    (todo) =>
+      todo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      todo.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedTodos = filteredTodos.sort((a, b) => {
     const dateA = new Date(a.dueDate);
     const dateB = new Date(b.dueDate);
     return dateA - dateB;
@@ -126,13 +141,25 @@ function TodoItem() {
     return `${day}/${month}/${year}`;
   };
 
+  const today = new Date().toISOString().split("T")[0];
+
   const newId =
     todosState.length > 0
       ? Math.max(...todosState.map((todo) => todo.id)) + 1
       : 1;
 
   return (
-    <div className="container mt-4">
+    <div className="container mt-4 main-content">
+      {/* Search Bar */}
+      <div className="d-flex justify-content-end mb-3">
+        <Form.Control
+          type="text"
+          placeholder="Search Todos..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+        />
+      </div>
+
       <div className="d-flex justify-content-end mb-3">
         <Button variant="primary" onClick={() => handleAddEditClick()}>
           Add Todo
@@ -140,45 +167,51 @@ function TodoItem() {
       </div>
 
       {/* Todo List */}
-      {sortedTodos.map((todo) => (
-        <div key={todo.id} className="card mb-3">
-          <div className="card-body">
-            <div className="row">
-              <div className="col-6">
-                <h5 className="card-title">{todo.title}</h5>
-                <p className="card-text mb-1">
-                  <strong>Description:</strong> {todo.description}
-                </p>
-                <p className="card-text">
-                  <strong>Status:</strong>{" "}
-                  {todo.completed ? "Completed" : "Not Completed"}
-                </p>
+      {sortedTodos.length === 0 ? (
+        <NotFound />
+      ) : (
+        sortedTodos.map((todo) => (
+          <div key={todo.id} className="card mb-3">
+            <div className="card-body">
+              <div className="row">
+                <div className="col-6">
+                  <h5 className="card-title">{todo.title}</h5>
+                  <p className="card-text mb-1">
+                    <strong>Description:</strong> {todo.description}
+                  </p>
+                  <p className="card-text">
+                    <strong>Status:</strong>{" "}
+                    {todo.completed ? "Completed" : "Not Completed"}
+                  </p>
+                </div>
+                <div className="col-6 d-flex justify-content-end align-items-center gap-3">
+                  <FontAwesomeIcon
+                    icon={faEdit}
+                    size="lg"
+                    className="text-secondary"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleAddEditClick(todo)}
+                  />
+                  <FontAwesomeIcon
+                    icon={faTrash}
+                    size="lg"
+                    className="text-danger"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleDeleteClick(todo.id)}
+                  />
+                </div>
               </div>
-              <div className="col-6 d-flex justify-content-end align-items-center gap-3">
-                <FontAwesomeIcon
-                  icon={faEdit}
-                  size="lg"
-                  className="text-secondary cursor-pointer"
-                  onClick={() => handleAddEditClick(todo)}
-                />
-                <FontAwesomeIcon
-                  icon={faTrash}
-                  size="lg"
-                  className="text-danger cursor-pointer"
-                  onClick={() => handleDeleteClick(todo.id)}
-                />
-              </div>
-            </div>
-            <div className="row mt-2">
-              <div className="col-12">
-                <p className="card-text">
-                  <strong>Due Date:</strong> {formatDate(todo.dueDate)}
-                </p>
+              <div className="row mt-2">
+                <div className="col-12">
+                  <p className="card-text">
+                    <strong>Due Date:</strong> {formatDate(todo.dueDate)}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
 
       {/* Add/Edit Todo Modal */}
       <Modal show={showEditModal} onHide={handleCloseEditModal}>
@@ -232,14 +265,19 @@ function TodoItem() {
                 value={newTodoDueDate}
                 onChange={(e) => setNewTodoDueDate(e.target.value)}
                 required
-                isInvalid={validatedDueDate && !newTodoDueDate}
+                isInvalid={
+                  validatedDueDate &&
+                  (!newTodoDueDate || newTodoDueDate < today)
+                }
                 className={
-                  validatedDueDate && !newTodoDueDate
+                  validatedDueDate &&
+                  (!newTodoDueDate || newTodoDueDate < today)
                     ? "is-invalid"
-                    : validatedDueDate && newTodoDueDate
+                    : validatedDueDate && newTodoDueDate >= today
                     ? "is-valid"
                     : ""
                 }
+                min={today}
               />
             </Form.Group>
           </Modal.Body>
